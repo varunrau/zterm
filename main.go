@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"github.com/nsf/termbox-go"
 	"github.com/pkg/errors"
+	"io/ioutil"
+	"math/rand"
+	"os"
 	"strconv"
 	"time"
 	"unicode"
@@ -10,6 +14,8 @@ import (
 
 type state struct {
 	currentLevel level
+	status       string
+	dict         []string
 }
 
 type point struct {
@@ -31,30 +37,60 @@ type word struct {
 	cursor   int
 }
 
-func (l *level) newLevel() level {
-	return level{
-		numWords:      l.numWords + 1,
-		maxWordLength: l.maxWordLength,
-		words: []word{
-			{
-				text: "hi",
-				location: point{
-					x: 10,
-					y: 10,
-				},
-				cursor: 0,
-			},
-			{
-				text: "hello",
-				location: point{
-					x: 30,
-					y: 10,
-				},
-				cursor: 0,
-			},
+func newState() state {
+	s := state{}
+	s = state{
+		currentLevel: level{
+			numWords:        3,
+			activeWordIndex: -1,
+			levelNumber:     0,
 		},
+		dict: readWords(),
+	}
+	s.newLevel()
+	return s
+}
+
+func readWords() []string {
+	ioutil.ReadFile("en.txt")
+	file, err := os.Open("en.txt")
+	if err != nil {
+		panic(errors.Wrap(err, "couldn't open word file"))
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	words := []string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		words = append(words, line)
+		if len(words) >= 1000000 {
+			break
+		}
+	}
+	return words
+}
+
+func (s *state) newLevel() {
+	currentLevel := s.currentLevel
+	s.currentLevel = level{
+		numWords:        currentLevel.numWords + 1,
 		activeWordIndex: -1,
-		levelNumber:     l.levelNumber + 1,
+		levelNumber:     currentLevel.levelNumber + 1,
+	}
+	for i := 0; i < s.currentLevel.numWords; i++ {
+		s.currentLevel.words = append(s.currentLevel.words, newWord(s.dict))
+	}
+}
+
+func newWord(dict []string) word {
+	_, height := termbox.Size()
+	return word{
+		text: dict[rand.Intn(len(dict))],
+		location: point{
+			x: 0,
+			y: rand.Intn(height),
+		},
+		cursor: 0,
 	}
 }
 
@@ -64,33 +100,7 @@ func exit(events chan termbox.Event, timer <-chan time.Time) {
 }
 
 func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan state) {
-	s := state{
-		currentLevel: level{
-			numWords:      3,
-			maxWordLength: 3,
-			words: []word{
-				{
-					text: "wassup",
-					location: point{
-						x: 10,
-						y: 10,
-					},
-					cursor: 0,
-				},
-				{
-					text: "hello",
-					location: point{
-						x: 30,
-						y: 10,
-					},
-					cursor: 0,
-				},
-			},
-			activeWordIndex: -1,
-			levelNumber:     1,
-		},
-	}
-
+	s := newState()
 	// init game state
 	gameState <- s
 
@@ -117,7 +127,7 @@ func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan 
 							s.currentLevel.words = append(s.currentLevel.words[:aIndex], s.currentLevel.words[aIndex+1:]...)
 							s.currentLevel.activeWordIndex = -1
 							if len(s.currentLevel.words) == 0 {
-								s.currentLevel = s.currentLevel.newLevel()
+								s.newLevel()
 							}
 						} else {
 							s.currentLevel.words[aIndex].cursor++
@@ -189,7 +199,8 @@ func eventLoop(e chan termbox.Event) {
 }
 
 func main() {
-
+	rand.Seed(time.Now().Unix())
+	readWords()
 	err := termbox.Init()
 	if err != nil {
 		panic(errors.Wrap(err, "failed to init termbox"))
