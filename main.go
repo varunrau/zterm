@@ -80,12 +80,18 @@ func (s *state) newLevel() {
 		activeWordIndex: -1,
 		levelNumber:     currentLevel.levelNumber + 1,
 	}
-	for i := 0; i < s.currentLevel.numWords; i++ {
-		s.currentLevel.words = append(s.currentLevel.words, newWord(s.dict))
+	wordSet := map[int]struct{}{}
+	for len(s.currentLevel.words) < s.currentLevel.numWords {
+		word := newWord(s.dict, wordSet)
+		_, ok := wordSet[word.location.y]
+		if !ok {
+			wordSet[word.location.y] = struct{}{}
+			s.currentLevel.words = append(s.currentLevel.words, word)
+		}
 	}
 }
 
-func newWord(dict []string) word {
+func newWord(dict []string, wordSet map[int]struct{}) word {
 	_, height := termbox.Size()
 	return word{
 		text: dict[rand.Intn(len(dict))],
@@ -205,7 +211,6 @@ func eventLoop(e chan termbox.Event) {
 }
 
 func main() {
-
 	isDebug := flag.Bool("debug", false, "true or false")
 	flag.Parse()
 	debug = isDebug != nil && *isDebug
@@ -218,7 +223,7 @@ func main() {
 	}
 
 	events := make(chan termbox.Event)
-	timer := time.Tick(1 * time.Second)
+	timer := time.Tick(500 * time.Millisecond)
 	gameState := make(chan state)
 
 	go renderLoop(gameState)
