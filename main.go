@@ -108,7 +108,7 @@ func exit(events chan termbox.Event, timer <-chan time.Time) {
 	termbox.Close()
 }
 
-func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan state) {
+func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan state) state {
 	s := newState()
 	gameState <- s
 
@@ -117,7 +117,7 @@ func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan 
 		case key := <-events:
 			switch {
 			case key.Key == termbox.KeyEsc || key.Key == termbox.KeyCtrlC: // exit
-				return
+				return s
 			case unicode.IsLetter(key.Ch): // character
 				if s.currentLevel.activeWordIndex == -1 {
 					for i, word := range s.currentLevel.words {
@@ -144,8 +144,12 @@ func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan 
 				}
 			}
 		case <-timer:
+			width, _ := termbox.Size()
 			for i := range s.currentLevel.words {
 				s.currentLevel.words[i].location.x++
+				if s.currentLevel.words[i].location.x >= width {
+					return s
+				}
 			}
 		default:
 			break
@@ -229,7 +233,9 @@ func main() {
 
 	go renderLoop(gameState)
 	go eventLoop(events)
-	defer exit(events, timer)
 
-	gameLoop(events, timer, gameState)
+	finalState := gameLoop(events, timer, gameState)
+
+	exit(events, timer)
+	fmt.Println(fmt.Sprintf("You reached level %d!", finalState.currentLevel.levelNumber))
 }
