@@ -28,3 +28,11 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/JoelOtter/termloop"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/nsf/termbox-go"
