@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"github.com/nsf/termbox-go"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -41,8 +42,7 @@ type word struct {
 }
 
 func newState() state {
-	s := state{}
-	s = state{
+	s := state{
 		currentLevel: level{
 			numWords:        3,
 			activeWordIndex: -1,
@@ -97,7 +97,7 @@ func newWord(dict []string, wordSet map[int]struct{}) word {
 		text: dict[rand.Intn(len(dict))],
 		location: point{
 			x: 0,
-			y: rand.Intn(height),
+			y: rand.Intn(height-1) + 1,
 		},
 		cursor: 0,
 	}
@@ -110,7 +110,6 @@ func exit(events chan termbox.Event, timer <-chan time.Time) {
 
 func gameLoop(events chan termbox.Event, timer <-chan time.Time, gameState chan state) {
 	s := newState()
-	// init game state
 	gameState <- s
 
 	for {
@@ -164,6 +163,8 @@ func renderLoop(gameState chan state) {
 		if debug {
 			drawDebugger(s)
 		}
+
+		drawText(0, 0, fmt.Sprintf("Level #%s", string(strconv.Itoa(s.currentLevel.levelNumber))))
 
 		for i, word := range s.currentLevel.words {
 			drawWord(word, i == s.currentLevel.activeWordIndex)
