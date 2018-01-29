@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"github.com/nsf/termbox-go"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -11,6 +12,8 @@ import (
 	"time"
 	"unicode"
 )
+
+var debug bool
 
 type state struct {
 	currentLevel level
@@ -151,7 +154,10 @@ func renderLoop(gameState chan state) {
 		s := <-gameState
 
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-		drawDebugger(s)
+
+		if debug {
+			drawDebugger(s)
+		}
 
 		for i, word := range s.currentLevel.words {
 			drawWord(word, i == s.currentLevel.activeWordIndex)
@@ -199,6 +205,11 @@ func eventLoop(e chan termbox.Event) {
 }
 
 func main() {
+
+	isDebug := flag.Bool("debug", false, "true or false")
+	flag.Parse()
+	debug = isDebug != nil && *isDebug
+
 	rand.Seed(time.Now().Unix())
 	readWords()
 	err := termbox.Init()
